@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "stdio.h": "c",
+        "algorithm": "c",
+        "memory_resource": "c",
+        "memory": "c",
+        "chrono": "c",
+        "__split_buffer": "c",
+        "array": "c",
+        "vector": "c",
+        "string_view": "c"
+    }
+}
