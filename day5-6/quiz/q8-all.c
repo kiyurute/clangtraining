@@ -140,7 +140,6 @@ int push_back(linked_list_t *linked_list, int key, int value){
 };
 
 int push_front(linked_list_t* linked_list, int key, int value){
-    printf("in push_front\n");
 
     struct node* new_node = (struct node*)malloc(sizeof(struct node));
 
@@ -152,7 +151,6 @@ int push_front(linked_list_t* linked_list, int key, int value){
 };
 
 void pop_back(linked_list_t *linked_list){
-    printf("in pop_back\n");
 
     node_t *last;
     last = (struct node_t*)malloc(sizeof(node_t));
@@ -178,7 +176,6 @@ void pop_back(linked_list_t *linked_list){
 };
 
 void pop_front(linked_list_t *linked_list){
-    printf("in pop_front\n");
 
     if(linked_list->front != NULL){
         node_t *tmp = linked_list -> front;
