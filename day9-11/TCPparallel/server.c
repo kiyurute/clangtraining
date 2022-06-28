@@ -65,7 +65,6 @@ while (1) {
   retval = select(mxfd + 1, &rfds, NULL, NULL, NULL);
   printf("retval:%d\n", retval);
 
-  //clientが終了したときはなぜかこの戻り値が2になる
   if(retval > 0){
       printf("detect connection\n");
       printf("retval:%d\n", retval);
