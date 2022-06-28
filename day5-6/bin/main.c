@@ -114,3 +114,19 @@ int main(void)
 
   return 0;
 }
+
+
+int push_front(linked_list_t *linked_list, int key, int value){
+    /* 1. allocate node */
+    struct linked_list* new_node = (struct linked_list*) malloc(sizeof(struct linked_list));
+
+    new_node->front->key = key;
+    new_node->front->value = value;
+
+    /* 3. Make next of new node as head */
+    new_node->front->next = linked_list;
+
+    /* 4. move the head to point to the new node */
+    linked_list = new_node;
+
+};

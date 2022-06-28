@@ -7,15 +7,17 @@
 #include <unistd.h>   //<-追記
 
 int
-main()
+main(int argc, char const *argv[])
 {
+ printf("arg:%s\n",argv[2]);
+ printf("arg:%s\n",argv[3]);
  struct sockaddr_in server;
  int sock;
  char buf[32];
  int n;
- char *mes = "iamclient";
- int meslen = strlen(mes);
-
+//  char mes[] = "iamclient";
+//  int meslen = strlen(mes);
+//  printf("meslen:%d\n", meslen);
  /* ソケットの作成 */
  sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -26,8 +28,9 @@ main()
 
  /* サーバに接続 */
  connect(sock, (struct sockaddr *)&server, sizeof(server));
- send(sock, mes, meslen, 0);
-
+ printf("mes:%s address:%p\n", argv[2],&argv[2]);
+ sleep(10);
+ send(sock, argv[2], strlen(argv[2]), 0);
  /* サーバからデータを受信 */
  memset(buf, 0, sizeof(buf));
  n = read(sock, buf, sizeof(buf));

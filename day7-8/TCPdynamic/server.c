@@ -44,9 +44,10 @@ while (1) {
   //  /* TCPクライアントからの接続要求を受け付ける */
   len = sizeof(client);
   sock = accept(sock0, (struct sockaddr *)&client, &len);
+  printf("sock:%d\n", sock);
   int messize = recv(sock, &mes, 20, 0);
   printf("messize:%d\n", messize);
-  printf("sock:%s\n", mes);
+  printf("mesval:%s\n", mes);
   write(sock, "HELLO from server", 30);
 
   //  /* TCPセッションの終了 */

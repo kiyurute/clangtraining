@@ -8,6 +8,7 @@
         "__split_buffer": "c",
         "array": "c",
         "vector": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "types.h": "c"
     }
 }
