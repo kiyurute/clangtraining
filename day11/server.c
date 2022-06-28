@@ -21,6 +21,7 @@ main()
 
  char buf[2048];
  char inbuf[2048];
+ int currentportnum = 12345;
 
  //select
  fd_set rfds;
@@ -58,7 +59,7 @@ main()
 	 "Content-Type: text/html\r\n"
      "Connection: Keep-Alive\r\n"
 	 "\r\n"
-	 "HELLO\r\n");
+	 "current port num:%d\r\n", currentportnum);
 
 
  while (1) {
@@ -99,6 +100,16 @@ main()
          	 perror("listen");
          	 return 1;
          }
+
+         currentportnum = sival;
+         snprintf(buf, sizeof(buf),
+	             "HTTP/1.1 200 OK\r\n"
+	            //  "Content-Length: 5\r\n"     //<-5に変更。メッセージサイズに合わせる必要がある
+	             "Content-Type: text/html\r\n"
+                 "Connection: Keep-Alive\r\n"
+	             "\r\n"
+	             "current port num:%d\r\n", currentportnum);
+
          
          FD_ZERO(&rfds);
          FD_SET(stdinput, &rfds);
