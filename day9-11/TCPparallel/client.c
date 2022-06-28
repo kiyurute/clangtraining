@@ -7,6 +7,8 @@
 #include <unistd.h>   //<-追記
 #include <sys/select.h>  
 
+void resetmsg(char*);
+
 int
 main()
 {
@@ -24,7 +26,7 @@ main()
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
 
-    printf("sock:%d\n",sock);
+    // printf("sock:%d\n",sock);
 
      /* 接続先指定用構造体の準備 */
     server.sin_family = AF_INET;
@@ -36,14 +38,14 @@ main()
 
     
     while(1){
-        printf("loop start\n");
+        // printf("loop start\n");
         int retval;
         FD_SET(stdinput, &rfds);
         FD_SET(sock, &rfds);
 
         retval = select(sock + 1, &rfds, NULL,NULL,NULL);
 
-        printf("retval:%d\n",retval);
+        // printf("retval:%d\n",retval);
 
         if(retval < 0){
             perror("select()");
@@ -53,10 +55,13 @@ main()
                 scanf("%s", &sendmes);
                 send(sock, sendmes, strlen(sendmes), 0);
             }else if(FD_ISSET(sock, &rfds)){
-                printf("get message from server\n");
-                printf("sock:%d\n",sock);
                 int  messize = recv(sock, &buf, 20, 0);
-                printf("%s\n", buf);
+                // printf("messize:%d\n",messize);
+                if(buf[0] != '\0'){
+                    printf("get message from server:%s\n", buf);
+                    resetmsg(&buf);
+                }
+    
             }else{
                 printf("nothing is set\n");
             }
@@ -67,6 +72,14 @@ main()
     }
 
        
+}
+
+void resetmsg(char* msg){
+    // printf("%s\n", msg);
+    int i;
+    for(i=0; i < 32; i++){
+        msg[i] = NULL;
+    }
 }
 
 

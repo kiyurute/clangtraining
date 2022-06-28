@@ -20,7 +20,8 @@ main()
  int sock0;
  struct sockaddr_in addr;
  struct sockaddr_in client;
- int len;
+//  int len;
+ socklen_t len; 
  int sock;
  int conlist[10] = {0,0,0,0,0,0,0,0,0,0}; //接続リスト
 
@@ -33,6 +34,7 @@ main()
  /* ソケットの作成 */
  sock0 = socket(AF_INET, SOCK_STREAM, 0);
  printf("created socket:%d\n", sock0);
+
  
  /* ソケットの設定 */
  addr.sin_family = AF_INET;
@@ -92,15 +94,10 @@ while (1) {
       for(i=4; i<14; i++){
           if(FD_ISSET(i, &rfds)){
             printf("%d is set\n", i);
-            //   printf("before recv\n");
-            //   messize = recv(i, &mes, 20, 0);
-            //   printf("after recv\n");
-            //   broadcast(conlist, &mes);
-            //   break;
 
             messize = recv(i, &mes, 20, 0);
-            if(mes[0] != NULL){
-             broadcast(conlist, &mes);
+            if(mes[0] != '\0'){
+             broadcast(conlist, mes);
             }else{
                 printf("detect discon\n");         
                 FD_CLR(i, &rfds);
@@ -110,7 +107,6 @@ while (1) {
             break;
 
           }
-          printf("after if\n");
       }
       conlisttoset(conlist, &rfds);
       printf("mesval:%s\n", mes);
@@ -126,7 +122,7 @@ while (1) {
 
   int i;
   for(i=0; i<20; i++){
-    mes[i] = NULL;
+    mes[i] = '\0';
   }
  
   printf("while fin\n");
@@ -137,6 +133,8 @@ while (1) {
 
  return 0;
 }
+
+
 
 //現在登録されているfdを全て表示
 void showallfds(fd_set *fs){
@@ -190,7 +188,7 @@ void broadcast(int *arr, char *mes){
     for(i=0;i<10;i++){
         if(arr[i] != 0){
             printf("send to %d\n", arr[i]);
-            send(arr[i],mes,30, 0);
+            send(arr[i],mes,20, 0);
             // write(arr[i],mes,30);
         }
     }
