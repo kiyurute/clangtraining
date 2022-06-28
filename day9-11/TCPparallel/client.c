@@ -54,6 +54,7 @@ main()
                 send(sock, sendmes, strlen(sendmes), 0);
             }else if(FD_ISSET(sock, &rfds)){
                 printf("get message from server\n");
+                printf("sock:%d\n",sock);
                 int  messize = recv(sock, &buf, 20, 0);
                 printf("%s\n", buf);
             }else{
@@ -62,25 +63,6 @@ main()
 
         }
 
-        // scanf("%s",sendmes);
-        // send(sock, sendmes, strlen(sendmes), 0);
-
-        // if (send_size == -1) {
-        //     printf("send error\n");
-        //     break;
-        // }
-
-         /* サーバからデータを受信 */
-        // memset(buf, 0, sizeof(buf));
-        // n = read(sock, buf, sizeof(buf));
-
-        // printf("%d, %s\n", n, buf);
-
-        // close(sock);
-
-        // //select
-        // fd_set rfds;
-        // FD_ZERO(&rfds);
 
     }
 

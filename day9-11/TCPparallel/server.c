@@ -11,6 +11,8 @@ void addconlist(int *, int);
 void conlisttoset(int *, fd_set*);
 void showconlist(int *);
 void broadcast(int*, char*);
+void resetarr(int*);
+void rmfromarr(int*, int);
 
 int
 main()
@@ -61,10 +63,11 @@ while (1) {
   retval = select(mxfd + 1, &rfds, NULL, NULL, NULL);
   printf("retval:%d\n", retval);
 
+  //clientが終了したときはなぜかこの戻り値が2になる
   if(retval > 0){
       printf("detect connection\n");
       printf("retval:%d\n", retval);
-  }else if(retval < 0){
+  }else{
       perror("select()");
   };
 
@@ -86,15 +89,28 @@ while (1) {
   }else{
       printf("this is a message\n");
       int i, messize;
-      for(i=4; i<10; i++){
+      for(i=4; i<14; i++){
           if(FD_ISSET(i, &rfds)){
-              printf("before recv\n");
-              messize = recv(i, &mes, 20, 0);
-              printf("after recv\n");
-            //   write(i, &mes, 30);
-              broadcast(conlist, &mes);
-              break;
+            printf("%d is set\n", i);
+            //   printf("before recv\n");
+            //   messize = recv(i, &mes, 20, 0);
+            //   printf("after recv\n");
+            //   broadcast(conlist, &mes);
+            //   break;
+
+            messize = recv(i, &mes, 20, 0);
+            if(mes[0] != NULL){
+             broadcast(conlist, &mes);
+            }else{
+                printf("detect discon\n");         
+                FD_CLR(i, &rfds);
+                rmfromarr(conlist, i);
+                // resetarr(conlist);
+            }
+            break;
+
           }
+          printf("after if\n");
       }
       conlisttoset(conlist, &rfds);
       printf("mesval:%s\n", mes);
@@ -175,8 +191,25 @@ void broadcast(int *arr, char *mes){
         if(arr[i] != 0){
             printf("send to %d\n", arr[i]);
             send(arr[i],mes,30, 0);
-            write(arr[i],mes,30);
+            // write(arr[i],mes,30);
         }
     }
 }
 
+//配列の初期化
+void resetarr(int *arr){
+    int i;
+    for(i=0;i<10;i++){
+        arr[i] = 0;
+    }
+}
+
+//配列から指定の要素を削除
+void rmfromarr(int *arr, int num){
+    int i;
+    for(i=0; i<10; i++){
+        if(arr[i] == num){
+            arr[i] = 0;
+        }
+    }
+}
