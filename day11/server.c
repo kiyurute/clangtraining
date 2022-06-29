@@ -8,10 +8,25 @@
 #include <sys/select.h>  
 #include <string.h>
 
+int getFileSize(const char*);
+void setHtmlToBuff(char*, char*);
+void createResMsg(char*, char*, int*);
+
 
 int
 main()
 {
+
+ //ファイルサイズを読み込む
+ char *path = "./index.html";
+ int fileSize = getFileSize(path);
+ printf("filesize:%d\n",fileSize);
+
+ //htmlをバッファに格納
+ char body[2048];
+ setHtmlToBuff(body, path);
+ printf("%s\n",body);
+
  int sock0;
  struct sockaddr_in addr;
  struct sockaddr_in client;
@@ -51,15 +66,7 @@ main()
 	 return 1;
  }
 
- // 応答用HTTPメッセージ作成
- memset(buf, 0, sizeof(buf));
- snprintf(buf, sizeof(buf),
-	 "HTTP/1.1 200 OK\r\n"
-	//  "Content-Length: 5\r\n"     //<-5に変更。メッセージサイズに合わせる必要がある
-	 "Content-Type: text/html\r\n"
-     "Connection: Keep-Alive\r\n"
-	 "\r\n"
-	 "current port num:%d\r\n", currentportnum);
+ createResMsg(buf, body, &currentportnum);
 
 
  while (1) {
@@ -75,9 +82,8 @@ main()
      }
 
      if(FD_ISSET(0, &rfds)){
-        //  printf("ready\n");
+         printf("ready\n");
          scanf("%d",&sival);
-
          sock0 = socket(AF_INET, SOCK_STREAM, 0);
          if (sock0 < 0) {
          	 perror("socket");
@@ -102,13 +108,8 @@ main()
          }
 
          currentportnum = sival;
-         snprintf(buf, sizeof(buf),
-	             "HTTP/1.1 200 OK\r\n"
-	            //  "Content-Length: 5\r\n"     //<-5に変更。メッセージサイズに合わせる必要がある
-	             "Content-Type: text/html\r\n"
-                 "Connection: Keep-Alive\r\n"
-	             "\r\n"
-	             "current port num:%d\r\n", currentportnum);
+
+         createResMsg(buf,body,&currentportnum);
 
          
          FD_ZERO(&rfds);
@@ -146,6 +147,63 @@ main()
  close(sock0);
 
  return 0;
+}
+
+//ファイルサイズを取得する関数
+int getFileSize(const char *path){
+    int size, read_size;
+    char read_buf[2048];
+    FILE *f;
+
+    f = fopen(path, "rb");
+    if(f == NULL){
+        perror("cannot read a file");
+        return 0;
+    }
+
+    size = 0;
+    do{
+        read_size = fread(read_buf, 1, 2048, f);
+        size += read_size;
+    }while(read_size != 0);
+
+    fclose(f);
+
+    return size;
+
+}
+
+
+//htmlファイルをバッファに格納する関数
+void setHtmlToBuff(char *body, char *path){
+    FILE *f;
+    int file_size;
+
+    file_size = getFileSize(path);
+
+    f = fopen(path, "r");
+    fread(body, 1, file_size, f);
+    fclose(f);
+
+
+}
+
+//レスポンスメッセージの作成
+void createResMsg(char *buf, char *html, int *port){
+
+    // 応答用HTTPメッセージ作成
+    memset(buf, 0, 2048);
+    snprintf(buf, 2048,
+	 "HTTP/1.1 200 OK\r\n"
+     "Content-Type: text/html\r\n"
+     "Connection: Keep-Alive\r\n"
+     "\r\n"
+     "current port num:%d\r\n"
+     "%s", 
+     *port,
+     html
+     );
+
 }
 
 
