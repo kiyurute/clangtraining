@@ -21,9 +21,12 @@ node_t* find_mx_address;
 
 
 int main(){
-    node_t *root = (struct node*)malloc(sizeof(struct node));
+
+    // node_t *root = (struct node*)malloc(sizeof(struct node));
+    node_t *root = NULL;
 
     bt_insert(&root, 5);
+    printf("root address:%p\n",root);
     bt_insert(&root, 3);
     bt_insert(&root, 1);
     bt_insert(&root, 15);
@@ -42,6 +45,7 @@ int main(){
 
 
     printTree(root,0);
+    printf("print fin\n");
 
     bt_search(&root, 5);
     bt_search(&root,18);
@@ -100,27 +104,34 @@ void bt_insert_spare(node_t **root_ref, int val){
 //再帰呼び出しでの要素の登録
 void bt_insert(node_t **root_ref, int val){
 
-    node_t *new_node = (struct node*)malloc(sizeof(struct node));
-    new_node->value = val;
-
     node_t *node_address = *root_ref;
 
-    if(node_address->value == '\0'){
-        node_address->value = val;
-        return;
+    //rootのノードが無かった時
+    if(node_address == NULL){
+        node_t *new_node = (struct node*)malloc(sizeof(struct node));
+        new_node->value = val;
+        *root_ref = new_node;
+        return; 
     }
 
-
+    //追加する値が対象ノードの値より小さく、左ノードがない時は左に追加
     if(node_address->value > val && node_address->left == NULL){
+        node_t *new_node = (struct node*)malloc(sizeof(struct node));
+        new_node->value = val;
         node_address->left = new_node;
         return;
+    //左ノードがあった場合はさらに下へ
     }else if(node_address->value > val && node_address->left != NULL){
         bt_insert(&(node_address->left), val);
     }else{}
 
+    //追加する値が対象ノードの値より大きく、右ノードがない時は右に追加
     if(node_address->value < val && node_address->right == NULL){
+        node_t *new_node = (struct node*)malloc(sizeof(struct node));
+        new_node->value = val;
         node_address->right = new_node;
         return;
+    //右ノードがあった場合はさらに下へ
     }else if(node_address->value < val && node_address->right != NULL){
         bt_insert(&(node_address->right), val);
     }else{}
@@ -214,6 +225,9 @@ void bt_drop(node_t **root_ref, node_t **pre_ref, int val){
             }
 
             printf("max_val:%d max_address:%p\n", find_mx_num,find_mx_address);
+
+            node_address->value = find_mx_num;
+
 
 
 
