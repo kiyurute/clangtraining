@@ -10,9 +10,13 @@ typedef struct node {
 } node_t;
 
 void bt_insert(node_t**, int);
-void printTree(node_t**, int);
-void bt_search(node_t**, int);
+void printTree(node_t*, int);
+int bt_search(node_t**, int);
 void bt_drop(node_t**, node_t**, int);
+
+
+int find_mx_num = -1;
+node_t* find_mx_address;
 
 
 
@@ -30,15 +34,22 @@ int main(){
     bt_insert(&root, 9);
     bt_insert(&root, 4);
 
+    bt_insert(&root, 30);
+    bt_insert(&root, 25);
+    bt_insert(&root, 35);
+    bt_insert(&root, 22);
+    bt_insert(&root, 27);
 
-    printTree(&root,0);
 
-    bt_search(&root, 12);
+    printTree(root,0);
+
+    bt_search(&root, 5);
     bt_search(&root,18);
 
-    // node_t *pre = (struct node*)malloc(sizeof(struct node));
-    // bt_drop(&root, &pre, 3);
-    // printTree(&root,0);
+    node_t *pre = (struct node*)malloc(sizeof(struct node));
+    find_mx_num = -1;
+    bt_drop(&root, &pre, 5);
+    printTree(root, 0);
 
 
 }
@@ -119,18 +130,18 @@ void bt_insert(node_t **root_ref, int val){
 
 
 //全ノード表示
-void printTree(node_t **root, int depth){
+void printTree(node_t *root, int depth){
 
   int i;
 
-  node_t *node_address = *root;
+  node_t *node_address = root;
 
   if(node_address == NULL){
     return ;
   }
 
   /* 左の子孫ノードを表示 */
-  printTree(&node_address->left, depth+1);
+  printTree(node_address->left, depth+1);
  
   /* 深さをスペースで表現 */ 
 //   for(i = 0; i < depth; i++){
@@ -141,33 +152,38 @@ void printTree(node_t **root, int depth){
   printf("val:%d\n", node_address->value);
 
   /* 右の子孫ノードを表示 */
-  printTree(&node_address->right, depth+1);
+  printTree(node_address->right, depth+1);
 
   depth++;
 }
 
 //検索する関数
-void bt_search(node_t **root_ref, int val){
+int bt_search(node_t **root_ref, int val){
     
     node_t *node_address = *root_ref;
 
     if(node_address->value > val){
         if(node_address->left == NULL){
             printf("not found:%d\n", val);
-            return;
+            return -1;
         }
         bt_search(&(node_address->left), val);
     }else if(node_address->value < val){
         if(node_address->right == NULL){
             printf("not found:%d\n", val);
-            return;
+            return -1;
         }
         bt_search(&(node_address->right), val);
-    }else{
-        printf("find:%d\n",val);
-        return;
-    }
+    }else if(node_address->value == val){
+        printf("find:%d address:%p\n",val,node_address);
+        if(val > find_mx_num){
+            find_mx_num = val;
+            find_mx_address = node_address;
+        }
+        return find_mx_num;
+    }else{}
 
+    return -1;
 
 }
 
@@ -175,12 +191,12 @@ void bt_search(node_t **root_ref, int val){
 //削除する関数
 void bt_drop(node_t **root_ref, node_t **pre_ref, int val){
 
+    printf("in bt_drop\n");
+
    node_t *node_address = *root_ref;
    node_t *pre_address = *pre_ref;
 
     if(node_address->value == val){
-
-        printf("find:%d\n",val);
 
         //削除対象が両ノードとも持っていた場合
         if(node_address->left != NULL && node_address->right != NULL){
@@ -189,11 +205,17 @@ void bt_drop(node_t **root_ref, node_t **pre_ref, int val){
             printf("address:%p val:%d\n",node_address, node_address->value);
             printf("pre_address:%p val:%d\n",pre_address, pre_address->value);
 
-            if(pre_address->value < val){
-                pre_address->right = node_address->left;
-            }else if(pre_address->value < val){
-                pre_address->left = node_address->right;
-            }else{}
+            //削除対象以下の左側の最大の値を探す
+            int max_val = -1;
+            int search_val = node_address->value - 1;
+            while(max_val < 0){
+                max_val = bt_search(&(node_address->left),search_val);
+                search_val -= 1;
+            }
+
+            printf("max_val:%d max_address:%p\n", find_mx_num,find_mx_address);
+
+
 
         }
 
@@ -227,7 +249,6 @@ void bt_drop(node_t **root_ref, node_t **pre_ref, int val){
             }else if(pre_address->value > val){
                 pre_address->left = NULL;
             }else{}
-            
             
         } 
 
