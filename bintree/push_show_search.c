@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-
 typedef struct node {
   struct node *left;
   struct node *right;
@@ -13,20 +12,19 @@ void bt_insert(node_t**, int);
 void printTree(node_t*, int);
 int bt_search(node_t**, int);
 void bt_drop(node_t**, node_t**, int);
+int bt_set_empty(node_t**, node_t**, int);
 
 
 int find_mx_num = -1;
 node_t* find_mx_address;
 
-
+node_t *root = NULL;
 
 int main(){
 
     // node_t *root = (struct node*)malloc(sizeof(struct node));
-    node_t *root = NULL;
 
     bt_insert(&root, 5);
-    printf("root address:%p\n",root);
     bt_insert(&root, 3);
     bt_insert(&root, 1);
     bt_insert(&root, 15);
@@ -36,24 +34,28 @@ int main(){
     bt_insert(&root, 8);
     bt_insert(&root, 9);
     bt_insert(&root, 4);
+    bt_insert(&root, 0);
 
     bt_insert(&root, 30);
     bt_insert(&root, 25);
     bt_insert(&root, 35);
     bt_insert(&root, 22);
     bt_insert(&root, 27);
+    bt_insert(&root, 37);
 
 
     printTree(root,0);
     printf("print fin\n");
 
     bt_search(&root, 5);
-    bt_search(&root,18);
+    bt_search(&root,25);
 
     node_t *pre = (struct node*)malloc(sizeof(struct node));
     find_mx_num = -1;
-    bt_drop(&root, &pre, 5);
+    bt_drop(&root, &pre, 30);
     printTree(root, 0);
+    // bt_insert(&root, 30);
+    // printTree(root, 0);
 
 
 }
@@ -109,6 +111,8 @@ void bt_insert(node_t **root_ref, int val){
     //rootのノードが無かった時
     if(node_address == NULL){
         node_t *new_node = (struct node*)malloc(sizeof(struct node));
+        new_node->left = NULL;
+        new_node->right = NULL;
         new_node->value = val;
         *root_ref = new_node;
         return; 
@@ -117,6 +121,8 @@ void bt_insert(node_t **root_ref, int val){
     //追加する値が対象ノードの値より小さく、左ノードがない時は左に追加
     if(node_address->value > val && node_address->left == NULL){
         node_t *new_node = (struct node*)malloc(sizeof(struct node));
+        new_node->left = NULL;
+        new_node->right = NULL;
         new_node->value = val;
         node_address->left = new_node;
         return;
@@ -128,6 +134,8 @@ void bt_insert(node_t **root_ref, int val){
     //追加する値が対象ノードの値より大きく、右ノードがない時は右に追加
     if(node_address->value < val && node_address->right == NULL){
         node_t *new_node = (struct node*)malloc(sizeof(struct node));
+        new_node->left = NULL;
+        new_node->right = NULL;
         new_node->value = val;
         node_address->right = new_node;
         return;
@@ -135,7 +143,6 @@ void bt_insert(node_t **root_ref, int val){
     }else if(node_address->value < val && node_address->right != NULL){
         bt_insert(&(node_address->right), val);
     }else{}
-
     
 }
 
@@ -160,7 +167,7 @@ void printTree(node_t *root, int depth){
 //   }
 
   /* ノードのデータを表示 */
-  printf("val:%d\n", node_address->value);
+  printf("val:%d address:%p\n", node_address->value, node_address);
 
   /* 右の子孫ノードを表示 */
   printTree(node_address->right, depth+1);
@@ -168,7 +175,7 @@ void printTree(node_t *root, int depth){
   depth++;
 }
 
-//検索する関数
+//値を検索する関数
 int bt_search(node_t **root_ref, int val){
     
     node_t *node_address = *root_ref;
@@ -202,8 +209,6 @@ int bt_search(node_t **root_ref, int val){
 //削除する関数
 void bt_drop(node_t **root_ref, node_t **pre_ref, int val){
 
-    printf("in bt_drop\n");
-
    node_t *node_address = *root_ref;
    node_t *pre_address = *pre_ref;
 
@@ -226,10 +231,11 @@ void bt_drop(node_t **root_ref, node_t **pre_ref, int val){
 
             printf("max_val:%d max_address:%p\n", find_mx_num,find_mx_address);
 
+            bt_set_empty(&node_address,&pre_address,find_mx_num);
+
             node_address->value = find_mx_num;
 
-
-
+            return;
 
         }
 
@@ -241,7 +247,6 @@ void bt_drop(node_t **root_ref, node_t **pre_ref, int val){
             }else if(pre_address->value > val){
                 pre_address->left = node_address->left;
             }else{}
-
         }
 
         //削除対象が右ノードのみ持っていた場合
@@ -287,7 +292,38 @@ void bt_drop(node_t **root_ref, node_t **pre_ref, int val){
         pre_address = node_address;
         bt_drop(&(node_address->left), &pre_address, val);
 
-
     }
+
+}
+
+//指定された値を右に持つノードをさがし、右のノードをnullにする関数
+int bt_set_empty(node_t **root_ref, node_t **pre_ref, int val){
+    
+    node_t *node_address = *root_ref;
+    node_t *pre_address = *pre_ref;
+
+    printf("bt_set_empty:%p val:%d\n",node_address, node_address->value);
+    printf("val:%d\n",val);
+
+    if(node_address->value > val){
+        if(node_address->left == NULL){
+            printf("not found:%d\n", val);
+            return -1;
+        }
+        bt_set_empty(&(node_address->left), &node_address, val);
+    }else if(node_address->value < val){
+        if(node_address->right == NULL){
+            printf("not found:%d\n", val);
+            return -1;
+        }
+        bt_set_empty(&(node_address->right), &node_address, val);
+
+    }else if(node_address->value == val){
+        printf("pre_address:%p\n", pre_address);
+        pre_address->right = NULL;
+        return -1;
+    }else{}
+
+    return -1;
 
 }
