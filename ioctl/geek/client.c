@@ -35,7 +35,7 @@ main()
 
 
      /* サーバに接続 */
-    con = connect(sock, (struct sockaddr *)&server, sizeof(server));
+    con = connect(sock, (struct sockaddr *)&server, sizeof(server)); //ここが3wayhandshake
 
     
     while(1){

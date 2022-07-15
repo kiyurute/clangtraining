@@ -150,7 +150,7 @@ int check_have_msg(struct Node **head_ref, char* mes){
         // printf("val:%d, messize:%d\n", node_address->val, messize);
 
         if(messize > 0){
-            printf("find message\n");
+            printf("find message:%s\n",mes);
             return messize;
         }else if(messize == 0){           //接続が切断された場合はリストから削除
             printf("detect discon\n");
@@ -165,3 +165,5 @@ int check_have_msg(struct Node **head_ref, char* mes){
     return messize;
     
 }
+
+

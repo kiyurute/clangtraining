@@ -113,7 +113,7 @@ main()
 
     while (1){
 
-        char recv_msg[20]; //受信メッセージ格納用
+        char recv_msg[32]; //受信メッセージ格納用
         len = sizeof(client);
         sock = accept(sock0, (struct sockaddr *)&client, &len);
 
@@ -127,6 +127,7 @@ main()
         // printf("messize:%d\n", recv_msg_size);
         if(recv_msg_size > 0){
             broadcast_with_linklist(&head, recv_msg);
+            memset(recv_msg, '\0', sizeof(recv_msg));
         }else if(recv_msg_size == 0){
             show_all_linklist(&head);
         }
