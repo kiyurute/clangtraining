@@ -12,16 +12,22 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
-#include <sys/select.h>  
+#include <sys/select.h> 
+#include <sys/ioctl.h>
+
 
 #define FAIL    -1
 #define stdinput 0
 
+int val_ioctl = 1;
+
 void resetmsg(char*);
+fd_set wfds;
 
 int OpenConnection(const char *hostname, int port)
 {
     int sd;
+    int con;
     struct hostent *host;
     struct sockaddr_in addr;
     if ( (host = gethostbyname(hostname)) == NULL )
@@ -34,14 +40,25 @@ int OpenConnection(const char *hostname, int port)
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = *(long*)(host->h_addr);
-    if ( connect(sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 )
-    {
-        close(sd);
-        perror(hostname);
-        abort();
+
+    ioctl(sd, FIONBIO, &val_ioctl);
+    con = connect(sd, (struct sockaddr*)&addr, sizeof(addr));
+    printf("con:%d\n",con);
+
+    if(con == 0){
+        //success
+    }else if( con < 0 && errno == EINPROGRESS){
+       
+        FD_SET(sd, &wfds);
+        select(sd + 1, NULL, &wfds, NULL,NULL);
+        printf("select fin\n");
+    }else{
+        return -1;
     }
+
     return sd;
 }
+
 SSL_CTX* InitCTX(void)
 {
     SSL_METHOD *method;
@@ -76,8 +93,11 @@ void ShowCerts(SSL* ssl)
     else
         printf("Info: No client certificates configured.\n");
 }
+
+
 int main(int count, char *strings[])
 {
+    errno = 0;
     SSL_CTX *ctx;
     int server;
     SSL *ssl;
@@ -92,6 +112,8 @@ int main(int count, char *strings[])
         printf("usage: %s <hostname> <portnum>\n", strings[0]);
         exit(0);
     }
+
+
     SSL_library_init();
     hostname=strings[1];
     portnum=strings[2];
@@ -100,7 +122,29 @@ int main(int count, char *strings[])
     ssl = SSL_new(ctx);      /* create new SSL connection state */
     SSL_set_fd(ssl, server);    /* attach the socket descriptor */
 
-    if ( SSL_connect(ssl) == FAIL ){   /* perform the connection */
+    int connect_result;
+    int cr_err;
+    
+    ioctl(stdinput, FIONBIO, &val_ioctl);
+
+    while(1){
+
+        connect_result = SSL_connect(ssl);  //SSL handshake
+        cr_err = SSL_get_error(ssl,connect_result);
+        if(cr_err == SSL_ERROR_WANT_READ || cr_err == SSL_ERROR_WANT_WRITE || cr_err == SSL_ERROR_WANT_ACCEPT){
+
+        }else if(cr_err == SSL_ERROR_NONE){
+            break;
+        }else{
+            //エラー処理
+            printf("%s.\n", strerror(errno));
+        }
+
+    }
+
+  
+
+    if ( connect_result == FAIL ){   
         printf("connection error\n");
         ERR_print_errors_fp(stderr);
     }else{

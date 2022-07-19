@@ -91,6 +91,7 @@ void signal_handler(int signo){
 int
 main()
 {
+    errno = 0;
     //signalの設定
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
@@ -119,7 +120,7 @@ main()
     int sock;
     int err;
 
-    int val_ioctl = 1;
+    int val_ioctl = 1; //値が返ってくるまでブロッキング。こうしないとメッセージ取得のところでうまくいかない。
 
     memset(&hints, 0, sizeof(hints));
     
@@ -189,10 +190,21 @@ main()
           ssl = SSL_new(ctx);
           SSL_set_fd(ssl, sock);
 
-          if (SSL_accept(ssl) <= 0) {
-              ERR_print_errors_fp(stderr);
-          } else {
-              printf("connection success\n");
+          int accept_result;
+          int cr_err;
+
+          while(1){
+
+              accept_result = SSL_accept(ssl);  //SSL handshake
+              cr_err = SSL_get_error(ssl,accept_result);
+              if(cr_err == SSL_ERROR_WANT_READ || cr_err == SSL_ERROR_WANT_WRITE || cr_err == SSL_ERROR_WANT_ACCEPT){
+                  printf("%s.\n", strerror(errno));
+              }else if(cr_err == SSL_ERROR_NONE){
+                  break;
+              }else{
+                  //エラー処理
+              }
+      
           }
 
           //リンクリストに追加
@@ -222,7 +234,10 @@ main()
                     drop_desval(&head, i);
                     show_all_linklist(&head);
                 }else{
-
+                    printf("connection error\n");         
+                    FD_CLR(i, &rfds);
+                    drop_desval(&head, i);
+                    show_all_linklist(&head);
                 }
 
                 break; //同時に来たときは早い方だけ
@@ -257,139 +272,3 @@ main()
 
 
 
-// //現在登録されているfdを全て表示
-// void showallfds(fd_set *fs, int mxfd){
-//     int i;
-//     printf("showallfds---------------------------\n");
-//     for(i=0;i<mxfd + 1;i++){
-//         if(FD_ISSET(i,fs)){
-//             printf("%d exsits\n",i);
-//         }
-//     }
-//     printf("showallfdsfin------------------------\n");
-
-// }
-
-
-// //リンクリストを全て表示
-// void show_all_linklist(struct Node** head_ref){
-
-//     struct Node* node_address = *head_ref;
-
-//     printf("linklist-----------------------------\n");
-
-//     while(node_address != NULL){
-//         printf("address:%p\n", node_address);
-//         printf("fdval:%d\n", node_address->val);
-//         printf("ssladdress:%p\n", node_address->ssl);
-//         node_address = node_address->next;
-//     }
-
-//     printf("linklist fin--------------------------\n");
-
-// }
-
-// //リンクリストの末尾に追加
-// void push_back(struct Node** head_ref, int new_data, SSL *ssl){
-
-//     printf("node:%p\n", head_ref);
-//     printf("node*:%p\n", *head_ref);
-//     // printf("node&:%p\n", &head_ref);
-//     struct Node* new_node = (struct Node*)malloc(sizeof(struct Node));
-
-//     struct Node* last = *head_ref;
-
-//     new_node -> next = NULL;
-//     new_node -> val = new_data;
-//     new_node -> ssl = ssl;
-
-//     if(*head_ref == NULL){
-//         printf("this is a first connection\n");
-//         *head_ref = new_node;
-//         return;
-//     }
-
-
-//     while(last->next != NULL){
-//         last = last->next;
-//     }
-
-//     last -> next = new_node;
-//     return;
-
-// }
-
-
-// //リンクリストから指定の要素を削除
-// void drop_desval(struct Node** head_ref, int desval){
-
-//     struct Node* node_address = *head_ref;
-//     struct Node* pre_address = NULL;
-
-//     int counter = 0;
-
-
-//     while(node_address != NULL){
-//         printf("address:%p\n",node_address);
-
-//         if(node_address->val == desval){
-//             if(counter == 0){
-//                 *head_ref = node_address->next;
-//                 printf("close:%d\n",close(node_address->val));
-//                 return;
-//             }
-
-//             pre_address->next = node_address->next;
-//             printf("close:%d\n",close(node_address->val));
-//             free(node_address);
-//             return;
-//         }
-
-//         pre_address = node_address;
-//         node_address = node_address->next;
-
-//         counter += 1;
-//     }
-
-// }
-
-// //リンクリストを接続セットに反映
-// void copy_linklist_to_fs(struct Node **head_ref, fd_set *fs){
-
-//     struct Node* node_address = *head_ref;
-
-//     while(node_address != NULL){
-//         FD_SET(node_address->val, fs);
-//         node_address = node_address->next;
-//     }
-// }
-
-// //リンクリストを使ったブロードキャスト
-// void broadcast_with_linklist(struct Node **head_ref, char *mes){
-
-//     struct Node* node_address = *head_ref;
-
-//     while(node_address != NULL){
-//         // send(node_address->val,mes,strlen(mes),0);
-//         SSL_write(node_address->ssl, mes, strlen(mes));
-//         node_address = node_address->next;
-//     }
-
-// }
-
-// //暗号化されたメッセージを受信
-// int get_ssl_msg(struct Node **head_ref, int fdval, char *mesbuf){
-
-//     struct Node* node_address = *head_ref;
-//     int get_mes_size;
-
-//     while(node_address != NULL){
-//         if(node_address->val == fdval){
-//             get_mes_size = SSL_read(node_address->ssl, mesbuf, 1024);
-//             return get_mes_size;
-//         }
-//         node_address = node_address -> next;
-//     }
-
-//     return 0;
-// }
