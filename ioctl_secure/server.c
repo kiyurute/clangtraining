@@ -120,7 +120,7 @@ main()
     int sock;
     int err;
 
-    int val_ioctl = 1; //値が返ってくるまでブロッキング。こうしないとメッセージ取得のところでうまくいかない。
+    int val_ioctl = 1;
 
     memset(&hints, 0, sizeof(hints));
     
@@ -198,11 +198,12 @@ main()
               accept_result = SSL_accept(ssl);  //SSL handshake
               cr_err = SSL_get_error(ssl,accept_result);
               if(cr_err == SSL_ERROR_WANT_READ || cr_err == SSL_ERROR_WANT_WRITE || cr_err == SSL_ERROR_WANT_ACCEPT){
-                  printf("%s.\n", strerror(errno));
+
               }else if(cr_err == SSL_ERROR_NONE){
                   break;
               }else{
                   //エラー処理
+                  printf("%s.\n", strerror(errno));
               }
       
           }
