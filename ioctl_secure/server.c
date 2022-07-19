@@ -1,7 +1,4 @@
-//ioctlの例 https://www.geekpage.jp/programming/linux-network/nonblocking.php
-//ioctlの説明 https://linuxhint.com/c-ioctl-function-usage/#:~:text=The%20Purpose%20of%20the%20IOCTL%20Function%20in%20C%3A&text=The%20device%20files%20are%20the,IOCTL%E2%80%9D%20function%20comes%20into%20play.
-
-// gcc -I /opt/homebrew/Cellar/openssl@3/3.0.5/include -o server server.c func.c -L /opt/homebrew/Cellar/openssl@3/3.0.5/lib -l ssl -l crypto
+//gcc -I /opt/homebrew/Cellar/openssl@3/3.0.5/include -o server server.c func.c -L /opt/homebrew/Cellar/openssl@3/3.0.5/lib -l ssl -l crypto
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +11,8 @@
 #include <netdb.h>
 #include <signal.h> 
 #include <sys/ioctl.h>
+
+#include <arpa/inet.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
@@ -21,32 +20,21 @@
 struct Node {
      int val;
      SSL *ssl;
-     struct Node *next;   
+     struct Node *next; 
  };
 
+
+//先頭ノードの作成
 struct Node *head = NULL;
 
 //関数のプロトタイプ宣言
 void showallfds(fd_set*, int);
-void push_back(struct Node**, int);
+void push_back(struct Node**, int, SSL*);
 void show_all_linklist(struct Node**);
 void drop_desval(struct Node**, int);
 void copy_linklist_to_fs(struct Node**, fd_set*);
 void broadcast_with_linklist(struct Node**, char*);
-int  check_have_msg(struct Node**, char*);
-
-int get_sig_flag = 0;
-
-//signal処理
-void signal_handler(int signo){
-    printf("\nclose:%d",close(3));
-    get_sig_flag = 1;
-    char *server_shut_msg = "server closed";
-    broadcast_with_linklist(&head, server_shut_msg);
-    printf("\nbye\n");
-    exit(0);
-}
-
+int get_ssl_msg(struct Node**, int, char*);
 
 //SSLコンテキストの作成
 SSL_CTX *create_context()
@@ -66,6 +54,7 @@ SSL_CTX *create_context()
     return ctx;
 }
 
+
 //証明書の読み込み、有効か確認
 void configure_context(SSL_CTX *ctx)
 {
@@ -82,6 +71,20 @@ void configure_context(SSL_CTX *ctx)
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
+}
+
+
+
+int get_sig_flag = 0;
+
+//シグナルの設定
+void signal_handler(int signo){
+    printf("\nclose:%d",close(3));
+    get_sig_flag = 1;
+    char *server_shut_msg = "server closed";
+    broadcast_with_linklist(&head, server_shut_msg);
+    printf("\nbye\n");
+    exit(0);
 }
 
 
@@ -117,7 +120,6 @@ main()
     int err;
 
     int val_ioctl = 1;
-    int messize;
 
     memset(&hints, 0, sizeof(hints));
     
@@ -138,7 +140,7 @@ main()
          return 1;
      }
 
-     printf("created socket:%d\n", sock0);
+    //  printf("created socket:%d\n", sock0);
 
     if(bind(sock0, res->ai_addr, res->ai_addrlen) != 0){
         perror("bind");
@@ -147,52 +149,247 @@ main()
 
     freeaddrinfo(res);
 
-     /* TCPクライアントからの接続要求を待てる状態にする */
-     listen(sock0, 5);
+    /* TCPクライアントからの接続要求を待てる状態にする */
+    listen(sock0, 5);
+    mxfd = sock0;
+    FD_SET(sock0, &rfds);
 
-     ioctl(sock0, FIONBIO, &val_ioctl);
+    ioctl(sock0, FIONBIO, &val_ioctl);
 
-    //  FD_SET(sock0, &rfds);
-     mxfd = sock0;
-     FD_SET(sock0, &rfds);
+    while (1) {
+      printf("loop start sock0:%d\n", sock0);
+      FD_SET(sock0, &rfds);
+      int select_retval;  //selectの戻り値格納用
+      SSL *ssl;
 
+      char mes[20];
+      int meslen = strlen(mes);
 
-    while (1){
+      printf("mxfd:%d\n",mxfd);
 
-        char recv_msg[32]; //受信メッセージ格納用
-        len = sizeof(client);
-        SSL *ssl;
+      showallfds(&rfds, mxfd);
 
-        sock = accept(sock0, (struct sockaddr *)&client, &len);
+      select_retval = select(mxfd + 1, &rfds, NULL, NULL, NULL);
+    //   printf("retval:%d\n", retval);
 
-        ssl = SSL_new(ctx);
-        SSL_set_fd(ssl, sock);
-        if (SSL_accept(ssl) <= 0) {
-            ERR_print_errors_fp(stderr);
-        } else {
-            printf("connection success\n");
-        }
+      if(select_retval > 0){
+          printf("detect connection\n");
+          printf("retval:%d\n", select_retval);
+      }else{
+          perror("select()");
+      };
 
-        if(sock > 3){
-            printf("catched new client\n");
-            push_back(&head, sock);
-            show_all_linklist(&head);
-        }
+      if(FD_ISSET(sock0, &rfds)){
+          printf("this is a new conneciton\n");
+          //  /* TCPクライアントからの接続要求を受け付ける */
+          len = sizeof(client);
+          sock = accept(sock0, (struct sockaddr *)&client, &len);
+          printf("sock:%d\n", sock);
+          
+          ssl = SSL_new(ctx);
+          SSL_set_fd(ssl, sock);
 
-        int recv_msg_size = check_have_msg(&head, recv_msg);
-        // printf("messize:%d\n", recv_msg_size);
-        if(recv_msg_size > 0){
-            broadcast_with_linklist(&head, recv_msg);
-            memset(recv_msg, '\0', sizeof(recv_msg));
-        }else if(recv_msg_size == 0){
-            show_all_linklist(&head);
-        }
-            
+          if (SSL_accept(ssl) <= 0) {
+              ERR_print_errors_fp(stderr);
+          } else {
+              printf("connection success\n");
+          }
 
-    }
+          //リンクリストに追加
+          push_back(&head, sock, ssl);
+          show_all_linklist(&head);
+          copy_linklist_to_fs(&head,&rfds);
+
+          showallfds(&rfds, mxfd);
+          if(sock > mxfd){
+          mxfd = sock;
+          }
+
+      }else{
+          printf("this is a message\n");
+          int i, messize;
+          for(i=4; i<mxfd + 1; i++){
+              printf("loop:%d\n",i);
+              if(FD_ISSET(i, &rfds)){
+                printf("%d is set\n", i);
+                messize = get_ssl_msg(&head, i, mes);
+                printf("messize:%d\n",messize);
+                if(messize > 0){
+                    broadcast_with_linklist(&head, mes);
+                }else if(messize == 0){
+                    printf("detect discon\n");         
+                    FD_CLR(i, &rfds);
+                    drop_desval(&head, i);
+                    show_all_linklist(&head);
+                }else{
+
+                }
+
+                break; //同時に来たときは早い方だけ
+
+              }
+          }
+
+          //conlisttoset(conlist, &rfds);
+          copy_linklist_to_fs(&head, &rfds);
+          printf("mesval:%s\n", mes);
+        //   showconlist(conlist);
+
+      }
+
+      //  /* TCPセッションの終了 */
+    //   close(sock);
+
+      int i;
+      for(i=0; i<20; i++){
+        mes[i] = '\0';
+      }
+    
+      printf("while fin\n");
+     }
 
      /* listen するsocketの終了 */
     //  close(sock0);
 
      return 0;
 }
+
+
+
+
+// //現在登録されているfdを全て表示
+// void showallfds(fd_set *fs, int mxfd){
+//     int i;
+//     printf("showallfds---------------------------\n");
+//     for(i=0;i<mxfd + 1;i++){
+//         if(FD_ISSET(i,fs)){
+//             printf("%d exsits\n",i);
+//         }
+//     }
+//     printf("showallfdsfin------------------------\n");
+
+// }
+
+
+// //リンクリストを全て表示
+// void show_all_linklist(struct Node** head_ref){
+
+//     struct Node* node_address = *head_ref;
+
+//     printf("linklist-----------------------------\n");
+
+//     while(node_address != NULL){
+//         printf("address:%p\n", node_address);
+//         printf("fdval:%d\n", node_address->val);
+//         printf("ssladdress:%p\n", node_address->ssl);
+//         node_address = node_address->next;
+//     }
+
+//     printf("linklist fin--------------------------\n");
+
+// }
+
+// //リンクリストの末尾に追加
+// void push_back(struct Node** head_ref, int new_data, SSL *ssl){
+
+//     printf("node:%p\n", head_ref);
+//     printf("node*:%p\n", *head_ref);
+//     // printf("node&:%p\n", &head_ref);
+//     struct Node* new_node = (struct Node*)malloc(sizeof(struct Node));
+
+//     struct Node* last = *head_ref;
+
+//     new_node -> next = NULL;
+//     new_node -> val = new_data;
+//     new_node -> ssl = ssl;
+
+//     if(*head_ref == NULL){
+//         printf("this is a first connection\n");
+//         *head_ref = new_node;
+//         return;
+//     }
+
+
+//     while(last->next != NULL){
+//         last = last->next;
+//     }
+
+//     last -> next = new_node;
+//     return;
+
+// }
+
+
+// //リンクリストから指定の要素を削除
+// void drop_desval(struct Node** head_ref, int desval){
+
+//     struct Node* node_address = *head_ref;
+//     struct Node* pre_address = NULL;
+
+//     int counter = 0;
+
+
+//     while(node_address != NULL){
+//         printf("address:%p\n",node_address);
+
+//         if(node_address->val == desval){
+//             if(counter == 0){
+//                 *head_ref = node_address->next;
+//                 printf("close:%d\n",close(node_address->val));
+//                 return;
+//             }
+
+//             pre_address->next = node_address->next;
+//             printf("close:%d\n",close(node_address->val));
+//             free(node_address);
+//             return;
+//         }
+
+//         pre_address = node_address;
+//         node_address = node_address->next;
+
+//         counter += 1;
+//     }
+
+// }
+
+// //リンクリストを接続セットに反映
+// void copy_linklist_to_fs(struct Node **head_ref, fd_set *fs){
+
+//     struct Node* node_address = *head_ref;
+
+//     while(node_address != NULL){
+//         FD_SET(node_address->val, fs);
+//         node_address = node_address->next;
+//     }
+// }
+
+// //リンクリストを使ったブロードキャスト
+// void broadcast_with_linklist(struct Node **head_ref, char *mes){
+
+//     struct Node* node_address = *head_ref;
+
+//     while(node_address != NULL){
+//         // send(node_address->val,mes,strlen(mes),0);
+//         SSL_write(node_address->ssl, mes, strlen(mes));
+//         node_address = node_address->next;
+//     }
+
+// }
+
+// //暗号化されたメッセージを受信
+// int get_ssl_msg(struct Node **head_ref, int fdval, char *mesbuf){
+
+//     struct Node* node_address = *head_ref;
+//     int get_mes_size;
+
+//     while(node_address != NULL){
+//         if(node_address->val == fdval){
+//             get_mes_size = SSL_read(node_address->ssl, mesbuf, 1024);
+//             return get_mes_size;
+//         }
+//         node_address = node_address -> next;
+//     }
+
+//     return 0;
+// }

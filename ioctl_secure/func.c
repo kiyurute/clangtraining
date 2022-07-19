@@ -1,4 +1,3 @@
-//server.cで使う関数をまとめたソースファイル
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,15 +9,22 @@
 #include <sys/select.h> 
 #include <netdb.h>
 #include <signal.h> 
-#include <sys/ioctl.h>
+
+#include <arpa/inet.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 
 //接続リストの構造体宣言
 struct Node {
      int val;
-     struct Node *next;   
+     SSL *ssl;
+     struct Node *next; 
  };
 
+
 extern struct Node *head;
+
 
 //現在登録されているfdを全て表示
 void showallfds(fd_set *fs, int mxfd){
@@ -33,6 +39,7 @@ void showallfds(fd_set *fs, int mxfd){
 
 }
 
+
 //リンクリストを全て表示
 void show_all_linklist(struct Node** head_ref){
 
@@ -43,6 +50,7 @@ void show_all_linklist(struct Node** head_ref){
     while(node_address != NULL){
         printf("address:%p\n", node_address);
         printf("fdval:%d\n", node_address->val);
+        printf("ssladdress:%p\n", node_address->ssl);
         node_address = node_address->next;
     }
 
@@ -51,7 +59,7 @@ void show_all_linklist(struct Node** head_ref){
 }
 
 //リンクリストの末尾に追加
-void push_back(struct Node** head_ref, int new_data){
+void push_back(struct Node** head_ref, int new_data, SSL *ssl){
 
     printf("node:%p\n", head_ref);
     printf("node*:%p\n", *head_ref);
@@ -62,6 +70,7 @@ void push_back(struct Node** head_ref, int new_data){
 
     new_node -> next = NULL;
     new_node -> val = new_data;
+    new_node -> ssl = ssl;
 
     if(*head_ref == NULL){
         printf("this is a first connection\n");
@@ -79,6 +88,7 @@ void push_back(struct Node** head_ref, int new_data){
 
 }
 
+
 //リンクリストから指定の要素を削除
 void drop_desval(struct Node** head_ref, int desval){
 
@@ -89,7 +99,7 @@ void drop_desval(struct Node** head_ref, int desval){
 
 
     while(node_address != NULL){
-        // printf("address:%p\n",node_address);
+        printf("address:%p\n",node_address);
 
         if(node_address->val == desval){
             if(counter == 0){
@@ -129,41 +139,26 @@ void broadcast_with_linklist(struct Node **head_ref, char *mes){
     struct Node* node_address = *head_ref;
 
     while(node_address != NULL){
-        send(node_address->val,mes,20,0);
+        // send(node_address->val,mes,strlen(mes),0);
+        SSL_write(node_address->ssl, mes, strlen(mes));
         node_address = node_address->next;
     }
 
 }
 
-//sockのどれかにメッセージが来てるか確認する
-//切断を検知したらリンクリストから削除
-//戻り値はメッセージサイズ
-int check_have_msg(struct Node **head_ref, char* mes){
+//暗号化されたメッセージを受信
+int get_ssl_msg(struct Node **head_ref, int fdval, char *mesbuf){
 
     struct Node* node_address = *head_ref;
-    int messize;
+    int get_mes_size;
 
     while(node_address != NULL){
-
-        messize = recv(node_address->val, mes, 20, 0); //0が接続なし -1が接続あるけどメッセージなし
-
-        // printf("val:%d, messize:%d\n", node_address->val, messize);
-
-        if(messize > 0){
-            printf("find message:%s\n",mes);
-            return messize;
-        }else if(messize == 0){           //接続が切断された場合はリストから削除
-            printf("detect discon\n");
-            drop_desval(head_ref, node_address->val);
-            return messize;
+        if(node_address->val == fdval){
+            get_mes_size = SSL_read(node_address->ssl, mesbuf, 1024);
+            return get_mes_size;
         }
-
         node_address = node_address -> next;
-
     }
 
-    return messize;
-    
+    return 0;
 }
-
-
