@@ -204,6 +204,7 @@ main()
               }else{
                   //エラー処理
                   printf("%s.\n", strerror(errno));
+                  break;
               }
       
           }
