@@ -246,9 +246,7 @@ int get_ssl_msg(struct Node **head_ref, int fdval, char *mesbuf){
             
                 }
 
-
             }
-
 
 
             get_mes_size = SSL_read(node_address->ssl, mesbuf, 1024);
