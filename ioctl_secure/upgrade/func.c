@@ -18,7 +18,7 @@
 //接続リストの構造体宣言
 struct Node {
      int val;
-     SSL *ssl;
+     SSL* ssl;
      int state; //0が3way handshake完了、1がSSL handshake完了
      struct Node *next; 
  };
@@ -108,7 +108,7 @@ void push_back(struct Node** head_ref, int new_data){
 
     new_node -> next = NULL;
     new_node -> val = new_data;
-    // new_node -> ssl = ssl;
+    new_node -> ssl = NULL;
     new_node -> state = 0;
 
     if(*head_ref == NULL){
@@ -204,50 +204,53 @@ void broadcast_with_linklist(struct Node **head_ref, char *mes){
 }
 
 //暗号化されたメッセージを受信
-int get_ssl_msg(struct Node **head_ref, int fdval, char *mesbuf){
+int get_ssl_msg(struct Node **head_ref, int fdval, char *mesbuf, SSL_CTX *ctx){
 
     struct Node* node_address = *head_ref;
     int get_mes_size;
 
     while(node_address != NULL){
+ 
         if(node_address->val == fdval){
 
-            if(node_address->state == 0){
+            printf("node_address->val:%d\n", node_address->val);
+            printf("node_address->ssl:%d\n", node_address->ssl == NULL);
 
-                SSL_CTX *ctx;
-                ctx = create_context();
-                configure_context(ctx);
-
+            if(node_address->ssl == NULL){
+        
                 SSL *ssl;
                 ssl = SSL_new(ctx);
-                SSL_set_fd(ssl, fdval);
                 node_address->ssl = ssl;
-      
-                int accept_result;
-                int cr_err;
-      
+
+                SSL_set_fd(node_address->ssl, node_address->val);
+            }
+                
+            int accept_result;
+            int cr_err;
+            SSL *ssl = node_address->ssl;
+
+            if(node_address -> state == 0){
+    
                 while(1){
-      
-                    accept_result = SSL_accept(ssl);  //SSL handshake
+                
+                    accept_result = SSL_accept(ssl); 
+
                     cr_err = SSL_get_error(ssl,accept_result);
-                    printf("cr_err:%d\n", cr_err);
                     if(cr_err == SSL_ERROR_WANT_READ || cr_err == SSL_ERROR_WANT_WRITE || cr_err == SSL_ERROR_WANT_ACCEPT){
-      
+                    
                     }else if(cr_err == SSL_ERROR_NONE){
                         get_mes_size = SSL_read(node_address->ssl, mesbuf, 1024);
                         printf("get_mes_size:%d\n",get_mes_size);
+                        node_address->state = 1;
                         return get_mes_size;
-
                     }else{
                         //エラー処理
                         printf("%s.\n", strerror(errno));
                         break;
                     }
-            
                 }
 
             }
-
 
             get_mes_size = SSL_read(node_address->ssl, mesbuf, 1024);
             return get_mes_size;

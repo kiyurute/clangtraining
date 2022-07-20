@@ -35,7 +35,10 @@ void show_all_linklist(struct Node**);
 void drop_desval(struct Node**, int);
 void copy_linklist_to_fs(struct Node**, fd_set*);
 void broadcast_with_linklist(struct Node**, char*);
-int get_ssl_msg(struct Node**, int, char*);
+int get_ssl_msg(struct Node**, int, char*, SSL_CTX*);
+
+SSL_CTX *create_context();
+void configure_context(SSL_CTX*);
 
 
 
@@ -74,9 +77,9 @@ main()
     int mxfd = -1;
 
     //SSL
-    // SSL_CTX *ctx;
-    // ctx = create_context();
-    // configure_context(ctx);
+    SSL_CTX *ctx;
+    ctx = create_context();
+    configure_context(ctx);
 
     int sock0;
     struct sockaddr_in client;
@@ -154,9 +157,7 @@ main()
 
           //リンクリストに追加
           push_back(&head, sock);
-        //   show_all_linklist(&head);
           copy_linklist_to_fs(&head,&rfds);
-
           showallfds(&rfds, mxfd);
           if(sock > mxfd){
           mxfd = sock;
@@ -166,13 +167,19 @@ main()
           printf("this is a message\n");
           int i, messize;
           for(i=4; i<mxfd + 1; i++){
+              //メッセージを受信したfdを探す
               if(FD_ISSET(i, &rfds)){
                 printf("%d is set\n", i);
-                messize = get_ssl_msg(&head, i, mes);
+
+                //メッセージを受信 文字数が戻り値
+                messize = get_ssl_msg(&head, i, mes, ctx);
                 printf("messize:%d\n",messize);
-                memset(mes,'\0',sizeof(mes));
+
+                //メッセージがあったらブロードキャスト
                 if(messize > 0){
                     broadcast_with_linklist(&head, mes);
+
+                //メッセージがなかったら接続切断と判断
                 }else if(messize == 0){
                     printf("detect discon\n");         
                     FD_CLR(i, &rfds);
@@ -192,7 +199,7 @@ main()
 
           copy_linklist_to_fs(&head, &rfds);
           printf("mesval:%s\n", mes);
-
+          memset(mes,'\0',sizeof(mes));
       }
 
       //  /* TCPセッションの終了 */
@@ -206,7 +213,3 @@ main()
 
      return 0;
 }
-
-
-
-

@@ -180,8 +180,8 @@ int main(int count, char *strings[])
 
                     }
 
-
                     SSL_write(ssl, sendmes, strlen(sendmes));
+                    memset(sendmes,NULL,sizeof(sendmes));
 
                 
                 }else if(FD_ISSET(server, &rfds)){
@@ -189,7 +189,7 @@ int main(int count, char *strings[])
                     if(getmes[0] != '\0'){
                         printf("get ssl message from server:%s\n", getmes);
                     }
-                    resetmsg(getmes);
+                    memset(getmes,NULL,sizeof(getmes));
 
                 }
             }
@@ -200,12 +200,4 @@ int main(int count, char *strings[])
     close(server);         /* close socket */
     SSL_CTX_free(ctx);        /* release context */
     return 0;
-}
-
-void resetmsg(char* msg){
-    // printf("%s\n", msg);
-    int i;
-    for(i=0; i < 1024; i++){
-        msg[i] = '\0';
-    }
 }
