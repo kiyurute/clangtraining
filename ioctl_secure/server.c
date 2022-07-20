@@ -197,6 +197,7 @@ main()
 
               accept_result = SSL_accept(ssl);  //SSL handshake
               cr_err = SSL_get_error(ssl,accept_result);
+              printf("cr_err:%d\n", cr_err);
               if(cr_err == SSL_ERROR_WANT_READ || cr_err == SSL_ERROR_WANT_WRITE || cr_err == SSL_ERROR_WANT_ACCEPT){
 
               }else if(cr_err == SSL_ERROR_NONE){
@@ -208,6 +209,8 @@ main()
               }
       
           }
+
+          //最初は登録だけする　次にメッセージが来た時にSSLハンドシェイクする。メッセージ処理の中にSSLハンドシェイクを含める。ノードの中にSSLハンドシェイクが済んでいるかのstateを保存する。
 
           //リンクリストに追加
           push_back(&head, sock, ssl);
