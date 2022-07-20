@@ -20,6 +20,7 @@
 struct Node {
      int val;
      SSL *ssl;
+     int state; //0が3way handshake完了、1がSSL handshake完了
      struct Node *next; 
  };
 
@@ -29,49 +30,13 @@ struct Node *head = NULL;
 
 //関数のプロトタイプ宣言
 void showallfds(fd_set*, int);
-void push_back(struct Node**, int, SSL*);
+void push_back(struct Node**, int);
 void show_all_linklist(struct Node**);
 void drop_desval(struct Node**, int);
 void copy_linklist_to_fs(struct Node**, fd_set*);
 void broadcast_with_linklist(struct Node**, char*);
 int get_ssl_msg(struct Node**, int, char*);
 
-//SSLコンテキストの作成
-SSL_CTX *create_context()
-{
-    const SSL_METHOD *method;
-    SSL_CTX *ctx;
-
-    method = TLS_server_method();
-
-    ctx = SSL_CTX_new(method);
-    if (!ctx) {
-        perror("Unable to create SSL context");
-        ERR_print_errors_fp(stderr);
-        exit(EXIT_FAILURE);
-    }
-
-    return ctx;
-}
-
-
-//証明書の読み込み、有効か確認
-void configure_context(SSL_CTX *ctx)
-{
-    //contex
-    /* Set the key and cert */
-    //証明書の作り方は「openssl req -new -key private-key.pem > my-request.csr」なのになぜ.pem?
-    if (SSL_CTX_use_certificate_file(ctx, "server.crt", SSL_FILETYPE_PEM) <= 0) {
-        ERR_print_errors_fp(stderr);
-        exit(EXIT_FAILURE);
-    }
-
-    // openssl genrsa 1024 > key.pem でOK?
-    if (SSL_CTX_use_PrivateKey_file(ctx, "server.key", SSL_FILETYPE_PEM) <= 0 ) {
-        ERR_print_errors_fp(stderr);
-        exit(EXIT_FAILURE);
-    }
-}
 
 
 
@@ -109,9 +74,9 @@ main()
     int mxfd = -1;
 
     //SSL
-    SSL_CTX *ctx;
-    ctx = create_context();
-    configure_context(ctx);
+    // SSL_CTX *ctx;
+    // ctx = create_context();
+    // configure_context(ctx);
 
     int sock0;
     struct sockaddr_in client;
@@ -161,9 +126,9 @@ main()
       printf("loop start sock0:%d\n", sock0);
       FD_SET(sock0, &rfds);
       int select_retval;  //selectの戻り値格納用
-      SSL *ssl;
+    //   SSL *ssl;
 
-      char mes[20];
+      char mes[1024];
       int meslen = strlen(mes);
 
       printf("mxfd:%d\n",mxfd);
@@ -186,35 +151,39 @@ main()
           len = sizeof(client);
           sock = accept(sock0, (struct sockaddr *)&client, &len);
           printf("sock:%d\n", sock);
+
+        //###############################################################
           
-          ssl = SSL_new(ctx);
-          SSL_set_fd(ssl, sock);
+        //   ssl = SSL_new(ctx);
+        //   SSL_set_fd(ssl, sock);
 
-          int accept_result;
-          int cr_err;
+        //   int accept_result;
+        //   int cr_err;
 
-          while(1){
+        //   while(1){
 
-              accept_result = SSL_accept(ssl);  //SSL handshake
-              cr_err = SSL_get_error(ssl,accept_result);
-              printf("cr_err:%d\n", cr_err);
-              if(cr_err == SSL_ERROR_WANT_READ || cr_err == SSL_ERROR_WANT_WRITE || cr_err == SSL_ERROR_WANT_ACCEPT){
+        //       accept_result = SSL_accept(ssl);  //SSL handshake
+        //       cr_err = SSL_get_error(ssl,accept_result);
+        //       printf("cr_err:%d\n", cr_err);
+        //       if(cr_err == SSL_ERROR_WANT_READ || cr_err == SSL_ERROR_WANT_WRITE || cr_err == SSL_ERROR_WANT_ACCEPT){
 
-              }else if(cr_err == SSL_ERROR_NONE){
-                  break;
-              }else{
-                  //エラー処理
-                  printf("%s.\n", strerror(errno));
-                  break;
-              }
+        //       }else if(cr_err == SSL_ERROR_NONE){
+        //           break;
+        //       }else{
+        //           //エラー処理
+        //           printf("%s.\n", strerror(errno));
+        //           break;
+        //       }
       
-          }
+        //   }
+
+        //###############################################################
 
           //最初は登録だけする　次にメッセージが来た時にSSLハンドシェイクする。メッセージ処理の中にSSLハンドシェイクを含める。ノードの中にSSLハンドシェイクが済んでいるかのstateを保存する。
 
           //リンクリストに追加
-          push_back(&head, sock, ssl);
-          show_all_linklist(&head);
+          push_back(&head, sock);
+        //   show_all_linklist(&head);
           copy_linklist_to_fs(&head,&rfds);
 
           showallfds(&rfds, mxfd);
@@ -226,11 +195,11 @@ main()
           printf("this is a message\n");
           int i, messize;
           for(i=4; i<mxfd + 1; i++){
-              printf("loop:%d\n",i);
               if(FD_ISSET(i, &rfds)){
                 printf("%d is set\n", i);
                 messize = get_ssl_msg(&head, i, mes);
                 printf("messize:%d\n",messize);
+                memset(mes,'\0',sizeof(mes));
                 if(messize > 0){
                     broadcast_with_linklist(&head, mes);
                 }else if(messize == 0){
@@ -240,9 +209,9 @@ main()
                     show_all_linklist(&head);
                 }else{
                     printf("connection error\n");         
-                    FD_CLR(i, &rfds);
-                    drop_desval(&head, i);
-                    show_all_linklist(&head);
+                    // FD_CLR(i, &rfds);
+                    // drop_desval(&head, i);
+                    // show_all_linklist(&head);
                 }
 
                 break; //同時に来たときは早い方だけ
@@ -258,11 +227,6 @@ main()
       //  /* TCPセッションの終了 */
     //   close(sock);
 
-      int i;
-      for(i=0; i<20; i++){
-        mes[i] = '\0';
-      }
-    
       printf("while fin\n");
      }
 
